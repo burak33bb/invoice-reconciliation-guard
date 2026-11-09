@@ -80,8 +80,6 @@ class InvoiceReconciliationGuard(gl.Contract):
         self.tolerance_bps = u16(tolerance_bps)
         self.allowed_invoice_domain = domain
         self.approved_total_minor = u256(0)
-        self.matched_invoice_ids = DynArray()
-        self.reports = DynArray()
         self.latest_report = ""
 
     @gl.public.write

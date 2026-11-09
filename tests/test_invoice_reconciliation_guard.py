@@ -17,6 +17,14 @@ class Decorator:
 
 
 def load_contract():
+    class FakeContract:
+        def __getattr__(self, name):
+            if name in {"matched_invoice_ids", "reports"}:
+                value = []
+                setattr(self, name, value)
+                return value
+            raise AttributeError(name)
+
     public = types.SimpleNamespace(write=Decorator(), view=Decorator())
     nondet = types.SimpleNamespace(
         web=types.SimpleNamespace(render=lambda url, mode: "invoice page"),
@@ -27,7 +35,7 @@ def load_contract():
     )
     fake_genlayer = types.ModuleType("genlayer")
     fake_genlayer.gl = types.SimpleNamespace(
-        Contract=object, public=public, nondet=nondet, eq_principle=eq_principle
+        Contract=FakeContract, public=public, nondet=nondet, eq_principle=eq_principle
     )
     fake_genlayer.DynArray = list
     fake_genlayer.u8 = int

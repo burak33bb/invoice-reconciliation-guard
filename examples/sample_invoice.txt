@@ -1,0 +1,18 @@
+INVOICE
+
+Invoice number: INV-2026-044
+Purchase order reference: PO-2026-001
+Supplier: Northstar Hosting Inc.
+Buyer: Example Studio LLC
+Currency: USD
+
+Line items:
+- Twelve months of managed hosting for the staging environment: USD 900.00
+- Daily backup service for the staging environment: USD 100.00
+
+Subtotal: USD 1,000.00
+Tax: USD 25.00
+Total including tax: USD 1,025.00
+
+This fictional invoice is a public test fixture. It is not a real invoice, a payment
+request, or evidence of a real commercial relationship.

@@ -66,6 +66,13 @@ Read methods: `get_config`, `get_report_count`, `get_latest_report`, `get_report
 - Scope evaluation is a semantic consensus signal, not a substitute for invoice verification or procurement approval.
 - Reports are bounded to 100 per deployed PO contract to limit unbounded state growth.
 
+## Studio Verification
+
+- Studionet contract: `0x7B61BE67E9434d7360116B7Ad635565348FEE7af`
+- Explorer: [Invoice Reconciliation Guard on Studio Explorer](https://explorer-studio.genlayer.com/address/0x7B61BE67E9434d7360116B7Ad635565348FEE7af)
+- Fixture report: `MATCH` for invoice `INV-2026-044`, PO `PO-2026-001`, total `102500` USD minor units (`USD 1,025.00`).
+- The fixture is fictional and demonstrates extraction and deterministic reconciliation only; it is not payment or issuer-authenticity evidence.
+
 ## Tests
 
 ```powershell

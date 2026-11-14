@@ -16,6 +16,11 @@ class Decorator:
         return function
 
 
+class FakeAddress:
+    def __init__(self, value):
+        self.as_hex = value
+
+
 def load_contract():
     class FakeContract:
         def __getattr__(self, name):
@@ -33,9 +38,13 @@ def load_contract():
     eq_principle = types.SimpleNamespace(
         prompt_comparative=lambda function, principle: function()
     )
+    message = types.SimpleNamespace(
+        sender_address=FakeAddress("0x0000000000000000000000000000000000000001")
+    )
     fake_genlayer = types.ModuleType("genlayer")
     fake_genlayer.gl = types.SimpleNamespace(
-        Contract=FakeContract, public=public, nondet=nondet, eq_principle=eq_principle
+        Contract=FakeContract, public=public, nondet=nondet, eq_principle=eq_principle,
+        message=message,
     )
     fake_genlayer.DynArray = list
     fake_genlayer.u8 = int
@@ -180,6 +189,7 @@ def test_consensus_invoice_is_recorded_and_cumulative_total_updates():
     assert report["cumulative_total_minor"] == 80000
     assert contract.approved_total_minor == 80000
     assert contract.get_report_count() == 1
+    assert contract.get_latest_report()["decision"] == "MATCH"
 
 
 def test_duplicate_matched_invoice_is_rejected_without_double_counting():
@@ -218,7 +228,8 @@ def test_unclear_scope_is_stored_for_review_not_counted_as_approved():
 
     assert report["decision"] == "NEEDS_REVIEW"
     assert contract.approved_total_minor == 0
-    assert contract.get_report_count() == 1
+    assert contract.get_report_count() == 0
+    assert contract.get_latest_report()["decision"] == "NEEDS_REVIEW"
 
 
 def test_mismatched_purchase_order_is_not_approved():

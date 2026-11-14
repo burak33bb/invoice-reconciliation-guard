@@ -27,6 +27,7 @@ class InvoiceReconciliationGuard(gl.Contract):
     purchase_order_total_minor: u256
     tolerance_bps: u16
     allowed_invoice_domain: str
+    reviewer: str
     approved_total_minor: u256
     matched_invoice_ids: DynArray[str]
     reports: DynArray[str]
@@ -79,16 +80,19 @@ class InvoiceReconciliationGuard(gl.Contract):
         self.purchase_order_total_minor = u256(purchase_order_total_minor)
         self.tolerance_bps = u16(tolerance_bps)
         self.allowed_invoice_domain = domain
+        self.reviewer = gl.message.sender_address.as_hex.lower()
         self.approved_total_minor = u256(0)
         self.latest_report = ""
 
     @gl.public.write
     def review_invoice(self, invoice_url: str) -> typing.Any:
+        caller = gl.message.sender_address.as_hex.lower()
+        if caller != self.reviewer:
+            raise ValueError("Only the configured invoice reviewer may submit reviews.")
+
         invoice_url = invoice_url.strip()
         if not _is_allowed_url(invoice_url, self.allowed_invoice_domain):
             raise ValueError("Invoice URL must use the configured HTTPS domain.")
-        if len(self.reports) >= MAX_REPORTS:
-            raise ValueError("This purchase order has reached its report limit.")
 
         po_ref = self.purchase_order_ref
         buyer = self.buyer_name
@@ -155,11 +159,16 @@ Rules:
         extraction = _validate_extraction(_parse_json_dict(agreed_json))
         report = self._build_report(invoice_url, extraction)
         report_json = _canonical_json(report)
-        self.reports.append(report_json)
-        self.latest_report = report_json
+
+        # The bounded archive is for accepted invoices only. Failed, unclear, and
+        # duplicate attempts update the latest result but cannot consume its slots.
         if report["decision"] == MATCH:
+            if len(self.reports) >= MAX_REPORTS:
+                raise ValueError("This purchase order has reached its 100 matched-invoice history limit.")
+            self.reports.append(report_json)
             self.approved_total_minor = u256(report["cumulative_total_minor"])
             self.matched_invoice_ids.append(_normalize_identifier(report["invoice_number"]))
+        self.latest_report = report_json
         return report
 
     def _build_report(self, invoice_url: str, invoice: dict) -> dict:
@@ -217,7 +226,7 @@ Rules:
                 cumulative = proposed_cumulative
 
         return {
-            "id": len(self.reports) + 1,
+            "id": len(self.reports) + 1 if decision == MATCH else None,
             "invoice_url": invoice_url,
             "invoice_number": invoice_number,
             "purchase_order_ref": po_ref,
@@ -246,6 +255,7 @@ Rules:
             "purchase_order_total_minor": self.purchase_order_total_minor,
             "tolerance_bps": self.tolerance_bps,
             "allowed_invoice_domain": self.allowed_invoice_domain,
+            "reviewer": self.reviewer,
             "approved_total_minor": self.approved_total_minor,
         }
 

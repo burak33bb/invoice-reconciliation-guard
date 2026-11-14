@@ -21,16 +21,17 @@ The decision is advisory. A matching public page does not prove issuer authentic
 ## State Design
 
 - Immutable PO reference, buyer, supplier, authorized scope, currency, decimal precision, total, tolerance, and invoice-domain allowlist.
+- The deploying wallet is recorded as the sole reviewer. Other callers revert before invoice fetching or consensus.
 - `approved_total_minor`: deterministic cumulative total for matched invoices only.
 - `matched_invoice_ids`: bounded duplicate protection for invoices already matched.
-- `reports`: append-only JSON assessment history, capped at 100 reports per PO.
-- `latest_report`: cached latest assessment for straightforward inspection.
+- `reports`: append-only JSON archive of `MATCH` invoices only, capped at 100 matched invoices per PO.
+- `latest_report`: latest assessment of any outcome. `NEEDS_REVIEW`, `MISMATCH`, and duplicate attempts update this field but do not occupy history slots or appear in `get_report`.
 
 Amounts are integer minor units, never floating point. For USD with two decimal places, `$1,250.00` is `125000` minor units. Partial invoices are supported; the contract prevents accepted invoices from exceeding the PO total plus its explicitly configured tolerance.
 
 ## Consensus Design
 
-`review_invoice(invoice_url)` accepts only HTTPS URLs on the deployment-configured invoice domain. Within `gl.eq_principle.prompt_comparative`, the leader and validators independently render the invoice page and extract the PO reference, invoice number, parties, currency, total in minor units, line-item summary, scope status, and short excerpts. The page is treated as untrusted data, not instructions.
+`review_invoice(invoice_url)` can be called only by the deploying wallet and accepts only HTTPS URLs on the deployment-configured invoice domain. Authorization and URL checks happen before invoice fetching or consensus. Within `gl.eq_principle.prompt_comparative`, the leader and validators independently render the invoice page and extract the PO reference, invoice number, parties, currency, total in minor units, line-item summary, scope status, and short excerpts. The page is treated as untrusted data, not instructions.
 
 Consensus is not asked to perform arithmetic or silently decide whether money should move. The contract deterministically performs party/PO/currency matching, duplicate checks, and cumulative cap calculations after consensus. State updates happen only after the nondeterministic result is accepted.
 
@@ -64,13 +65,13 @@ Read methods: `get_config`, `get_report_count`, `get_latest_report`, `get_report
 - One contract tracks one purchase order and one configured supplier/buyer pair.
 - Currency decimals are explicitly configured at deployment; the contract does not infer exchange rates or convert currencies.
 - Scope evaluation is a semantic consensus signal, not a substitute for invoice verification or procurement approval.
-- Reports are bounded to 100 per deployed PO contract to limit unbounded state growth.
+- Matched-invoice history is bounded to 100 per deployed PO contract. Non-matches, unclear results, and duplicates do not consume its slots. After 100 matches, another `MATCH` cannot be archived; deploy a replacement contract for a new PO/history lifecycle.
+- Reviewer authorization is immutable and set to the deploying wallet. If reviewer access must change, deploy a replacement instance and update the application to its address.
 
 ## Studio Verification
 
-- Studionet contract: `0x7B61BE67E9434d7360116B7Ad635565348FEE7af`
-- Explorer: [Invoice Reconciliation Guard on Studio Explorer](https://explorer-studio.genlayer.com/address/0x7B61BE67E9434d7360116B7Ad635565348FEE7af)
-- Fixture report: `MATCH` for invoice `INV-2026-044`, PO `PO-2026-001`, total `102500` USD minor units (`USD 1,025.00`).
+- The earlier Studionet address contains the old permissionless version. Deploy this corrected source as a new instance; state does not migrate automatically.
+- After deploying, record the new address and verify the `reviewer` returned by `get_config` before submitting deployment evidence.
 - The fixture is fictional and demonstrates extraction and deterministic reconciliation only; it is not payment or issuer-authenticity evidence.
 
 ## Tests
